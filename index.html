@@ -8927,6 +8927,92 @@ XT_TABS.splice(3,0,["cx","📚 My activities"]);
 {const _xc=xtClass;xtClass=function(el){if(el.id==="cxbox")return"cx";return _xc(el)}}
 {const _dt=drawTeacher;drawTeacher=function(){_dt();try{const pane=document.getElementById("tpane");if(!pane||S.view!=="teacher")return;if(!pane.querySelector("#cxbox")){const a=pane.querySelector("#xmbox")||pane.querySelector(".xrcard")||pane.querySelector(".lcteacher");if(a)a.insertAdjacentElement("afterend",cxTeacherCard());else pane.append(cxTeacherCard())}xtTabs(pane)}catch(e){console.error(e)}}}
 
+/* ===== Teacher: live monitor (who is in, submitted, not joined) and Excel marks ===== */
+const MON={sel:"",scope:"class",cls:null,stu:"",sub:false};
+const monFmt=t=>t?new Date(t).toLocaleString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+const monFull=(cls,i)=>tc(ROSTER[cls].names[i]);
+/* 1. extra facts the monitor needs: the mark of a submitted live exam, and "working now" for assignments */
+{const _rec=record;record=function(skill,unit,sc,t){try{if(XL&&XL.active)XL.pct=pct(sc,t)}catch(e){}return _rec.apply(this,arguments)}}
+{const _st=xlStatus;xlStatus=function(state,extra){if(state==="submitted"&&XL.pct!=null){extra=Object.assign({pct:Math.round(XL.pct)},extra||{});XL.pct=null}return _st.call(this,state,extra)}}
+{const _al=xaLaunch;xaLaunch=function(id){const r=_al.apply(this,arguments);try{if(r!==false&&XC.cur&&DB&&S.me){const k=xaKey();DB.doc("exs/"+XC.cur+"_"+k).set({sid:XC.cur,key:k,cls:S.me.cls,name:S.me.name,state:"in",ts:Date.now()}).catch(()=>{})}}catch(e){}return r}}
+/* 2. status of one student in one session */
+function monSessions(){const a=[];Object.values(XL.ctl||{}).forEach(c=>c&&a.push({kind:"L",c,id:"L:"+c.id}));Object.values(XC.asg||{}).forEach(c=>c&&a.push({kind:"A",c,id:"A:"+c.id}));return a.sort((x,y)=>(y.c.ts||0)-(x.c.ts||0))}
+function monStatus(se,x){const c=se.c,e=(XL.exs||{})[c.id+"_"+x.k];
+  if(se.kind==="A"){const d=(XC.ast||{})[c.id+"_"+x.k];if(d)return{g:"done",label:"Submitted",pct:d.pct,ts:d.ts};if(e&&e.state==="in")return{g:"now",label:"Working now",ts:e.ts};return{g:"away",label:Date.now()>c.end?"Missed (closed)":Date.now()<c.start?"Not opened yet":"Not started"}}
+  if(!e)return{g:"away",label:c.state==="live"?"Not joined":"Did not join"};
+  if(e.state==="submitted")return{g:"done",label:"Submitted",pct:e.pct,ts:e.ts};
+  if(e.state==="in")return{g:"now",label:"In the exam",ts:e.ts};
+  if(e.state==="left")return{g:"now",label:"Left the exam · locked",warn:true,ts:e.ts};
+  if(e.state==="ready")return{g:"away",label:"In the waiting room"};
+  return{g:"away",label:"Did not finish",ts:e.ts}}
+function monRows(se){return xlKeysOf(se.c).map(x=>({x,st:monStatus(se,x)}))}
+const monAct=u=>{u=String(u||"");try{const a=xaItems().find(x=>x.id===u);if(a)return a.t;const c=(typeof CX!=="undefined"&&CX.items||{})[u.replace(/^cx-/,"")];if(c&&c.title)return c.title}catch(e){}return u};
+const monLetter=p=>p==null||isNaN(p)?"":moe(p).L;
+/* 3. the Monitor panel */
+function monDraw(){const box=document.getElementById("monbox");if(!box)return;
+  const ses=monSessions(),cl=Object.keys(ROSTER);if(!MON.cls)MON.cls=S.tclass&&ROSTER[S.tclass]?S.tclass:cl[0];
+  if(!ses.find(s=>s.id===MON.sel))MON.sel=(ses.find(s=>s.kind==="L"&&s.c.state==="live")||ses[0]||{}).id||"";
+  const se=ses.find(s=>s.id===MON.sel);const F=t=>new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+  const pick=xtSel(ses.length?ses.map(s=>[s.id,(s.kind==="L"?(s.c.state==="live"?"🔴 LIVE · ":"⏹️ Live ended · "):"📌 Assigned · ")+s.c.title+" · "+F(s.c.ts)]):[["","No live exam or assignment yet"]],MON.sel,v=>{MON.sel=v;monDraw()});
+  let live=null;
+  if(se){const R=monRows(se),now=R.filter(r=>r.st.g==="now"),dn=R.filter(r=>r.st.g==="done"),aw=R.filter(r=>r.st.g==="away");
+    const tile=(n,l,col)=>h("div",{style:"flex:1;min-width:92px;border-radius:14px;padding:10px 8px;text-align:center;background:"+col[0]+";color:"+col[1]},h("div",{style:"font-size:2rem;font-weight:800;line-height:1"},String(n)),h("div",{class:"small",style:"font-weight:700"},l));
+    const multi=new Set(R.map(r=>r.x.cls)).size>1;const nm=r=>(multi?"["+r.x.cls+"] ":"")+r.x.n;
+    const list=(title,arr,col,fmt)=>h("div",{class:"col",style:"gap:3px;flex:1;min-width:210px;border:2px solid "+col+";border-radius:12px;padding:8px"},h("b",{style:"color:"+col},title+" ("+arr.length+")"),
+      h("div",{class:"col",style:"gap:2px;max-height:300px;overflow:auto"},arr.length?arr.map(r=>h("div",{class:"row small",style:"justify-content:space-between;gap:8px;flex-wrap:nowrap"},h("span",{},nm(r)),h("span",{class:"muted",style:"white-space:nowrap"},fmt(r)))):h("span",{class:"small muted"},"Nobody")));
+    live=h("div",{class:"col",style:"gap:10px"},
+      h("div",{class:"small muted"},se.kind==="L"?"Live exam · "+xlTargetLabel(se.c):"Assignment · "+xlTargetLabel(se.c)+" · "+F(se.c.start)+" → "+F(se.c.end)),
+      h("div",{class:"row",style:"gap:8px;flex-wrap:nowrap"},tile(R.length,"Should take it",["#EEF2F6","#1F2937"]),tile(now.length,se.kind==="L"?"On the exam now":"Working now",["#DCFCE7","#166534"]),tile(dn.length,"Submitted",["#DBEAFE","#1E3A8A"]),tile(aw.length,"Not joined / not finished",["#FEE2E2","#991B1B"])),
+      h("div",{class:"row",style:"gap:10px;align-items:stretch"},
+        list("🟢 "+(se.kind==="L"?"On the exam now":"Working now"),now,"#16A34A",r=>r.st.label),
+        list("✅ Submitted",dn,"#2563EB",r=>(r.st.pct!=null?Math.round(r.st.pct)+"% · "+monLetter(r.st.pct):"")),
+        list("🔴 Not joined / not finished",aw,"#DC2626",r=>r.st.label)))}
+  const sc=xtSel([["class","One class"],["all","All classes"],["student","One student"]],MON.scope,v=>{MON.scope=v;monDraw()});
+  const names=ROSTER[MON.cls]?xtNames(MON.cls):[];if(!names.find(n=>n.k===MON.stu))MON.stu=names[0]?names[0].k:"";
+  const xl=h("div",{class:"col",style:"gap:8px;border-top:1px solid var(--line);padding-top:10px"},h("h3",{style:"margin:0"},"📥 Download Excel"),
+    h("p",{class:"small muted",style:"margin:0"},"Sheets: Marks (names, classes, average, grade, dates), All attempts, Not finished, and the session above."),
+    h("div",{class:"row",style:"gap:10px;flex-wrap:wrap;align-items:end"},h("div",{},h("label",{},"Who"),sc),
+      MON.scope!=="all"?h("div",{},h("label",{},"Class"),xtSel(cl.map(k=>[k,ROSTER[k].label]),MON.cls,v=>{MON.cls=v;monDraw()})):null,
+      MON.scope==="student"?h("div",{},h("label",{},"Student"),xtSel(names.map(n=>[n.k,n.n]),MON.stu,v=>{MON.stu=v})):null,
+      h("button",{class:"btn",onclick:monExcel},"⬇ Download Excel")));
+  const st=box.scrollTop;box.replaceChildren(h("h3",{},"📊 Live monitor"),h("p",{class:"small muted"},"Updates by itself. Pick a live exam or an assignment to see who is in, who submitted and who has not joined."),
+    DB?h("div",{},h("label",{},"Session"),pick):h("p",{class:"note"},"Live numbers need the shared database (Claude app link or the Netlify copy with Firebase)."),live,xl);box.scrollTop=st}
+/* 4. Excel */
+const monEsc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"");
+const monCol=i=>{let s="";i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s};
+function monXlsx(sheets){const enc=new TextEncoder(),files=[];const add=(n,t)=>files.push({name:n,data:enc.encode(t)});
+  add("[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+'</Types>');
+  add("_rels/.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  add("xl/workbook.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>'<sheet name="'+monEsc(s.name).slice(0,31)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")+'</sheets></workbook>');
+  add("xl/_rels/workbook.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")+'<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  add("xl/styles.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0E8A6B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+  sheets.forEach((s,si)=>{const w=s.rows[0].map((_,c)=>Math.min(48,Math.max(10,...s.rows.map(r=>String(r[c]==null?"":r[c]).length+2))));
+    const rows=s.rows.map((r,ri)=>'<row r="'+(ri+1)+'">'+r.map((v,ci)=>{const ref=monCol(ci)+(ri+1),st=ri===0?' s="1"':"";if(typeof v==="number"&&isFinite(v)&&ri>0)return'<c r="'+ref+'"'+st+'><v>'+v+'</v></c>';return v===""||v==null?'<c r="'+ref+'"'+st+'/>':'<c r="'+ref+'"'+st+' t="inlineStr"><is><t xml:space="preserve">'+monEsc(v)+'</t></is></c>'}).join("")+'</row>').join("");
+    add("xl/worksheets/sheet"+(si+1)+".xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+w.map((x,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+x+'" customWidth="1"/>').join("")+'</cols><sheetData>'+rows+'</sheetData></worksheet>')});
+  const z=xmZip(files);return new Blob([z],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})}
+function monScopeStudents(){const out=[];const add=cls=>{if(!ROSTER[cls])return;ROSTER[cls].names.forEach((n,i)=>{if(!/Teacher Test$/.test(n)&&i<200&&n)out.push({k:key(cls,i),cls,i,name:monFull(cls,i),no:(ROSTER[cls].nums||{})[i]||""})})};
+  if(MON.scope==="all")Object.keys(ROSTER).forEach(add);else if(MON.scope==="class")add(MON.cls);else{const p=MON.stu.split("_");if(ROSTER[p[0]])out.push({k:MON.stu,cls:p[0],i:+p[1],name:monFull(p[0],+p[1]),no:(ROSTER[p[0]].nums||{})[+p[1]]||""})}return out}
+function monBook(){const stu=monScopeStudents(),td=S.tdata||{},lab=c=>ROSTER[c].label,skn={reading:"Reading",listening:"Listening",speaking:"Speaking",writing:"Writing"};
+  const marks=[["Class","Student No.","Student","Activities done","Average %","Grade","Last activity","Last login"]],att=[["Class","Student","Activity","Skill","Score","Out of","Percent","Grade","Date and time"]];
+  stu.forEach(s=>{const d=td[s.k]||{},A=(d.attempts||[]).slice().sort((a,b)=>(a.ts||0)-(b.ts||0)),o=A.length?overallOf(A):null,last=A.length?A[A.length-1].ts:0;
+    marks.push([lab(s.cls),s.no,s.name,A.length,o==null?"":Math.round(o*10)/10,o==null?"":monLetter(o),monFmt(last),monFmt((d.pm||{}).lastLogin)]);
+    A.forEach(a=>{const p=pct(a.sc,a.t);att.push([lab(s.cls),s.name,monAct(a.u),skn[a.s]||a.s||"",a.sc,a.t,Math.round(p*10)/10,monLetter(p),monFmt(a.ts)])})});
+  const ks=new Set(stu.map(s=>s.k)),nf=[["Class","Student","Type","Exam or activity","Status","Opened / closes"]];
+  monSessions().forEach(se=>{monRows(se).forEach(r=>{if(!ks.has(r.x.k)||r.st.g==="done")return;nf.push([lab(r.x.cls),monFull(r.x.cls,+r.x.k.split("_")[1]),se.kind==="L"?"Live exam":"Assignment",se.c.title,r.st.label,se.kind==="A"?monFmt(se.c.start)+" → "+monFmt(se.c.end):monFmt(se.c.ts)])})});
+  if(nf.length===1)nf.push(["","","","Nothing unfinished","",""]);
+  const sheets=[{name:"Marks",rows:marks},{name:"All attempts",rows:att.length>1?att:att.concat([["","No attempts yet","","","","","","",""]])},{name:"Not finished",rows:nf}];
+  const se=monSessions().find(s=>s.id===MON.sel);if(se){const ss=[["Class","Student","Status","Mark %","Grade","Time"]];monRows(se).forEach(r=>ss.push([lab(r.x.cls),monFull(r.x.cls,+r.x.k.split("_")[1]),r.st.label,r.st.pct==null?"":Math.round(r.st.pct),monLetter(r.st.pct),monFmt(r.st.ts)]));sheets.push({name:"Session",rows:ss})}
+  return sheets}
+async function monExcel(){try{const b=monXlsx(monBook());await saveBlob("zayed-marks-"+new Date().toISOString().slice(0,10)+".xlsx",b);toast("Excel file saved.")}catch(e){console.error(e);toast("Could not make the Excel file.")}}
+/* 5. wire into the teacher dashboard */
+function monSubs(){if(MON.sub||!DB)return;MON.sub=true;try{xlTSub();xtSub()}catch(e){}}
+{const _a=xlDraw;xlDraw=function(){_a.apply(this,arguments);try{monDraw()}catch(e){}}}
+{const _b=xtDraw;xtDraw=function(){_b.apply(this,arguments);try{monDraw()}catch(e){}}}
+function monTeacherCard(){monSubs();const b=h("div",{class:"card col monteacher",id:"monbox"});setTimeout(monDraw,0);return b}
+XT_TABS.splice(3,0,["mon","📊 Monitor & Excel"]);
+{const _xc=xtClass;xtClass=function(el){if(el.id==="monbox")return"mon";return _xc(el)}}
+{const _dt=drawTeacher;drawTeacher=function(){_dt();try{const pane=document.getElementById("tpane");if(!pane||S.view!=="teacher")return;if(!pane.querySelector("#monbox")){const a=pane.querySelector("#cxbox")||pane.querySelector("#xmbox")||pane.querySelector(".xrcard")||pane.querySelector(".lcteacher");if(a)a.insertAdjacentElement("afterend",monTeacherCard());else pane.append(monTeacherCard())}xtTabs(pane)}catch(e){console.error(e)}}}
+
 /* ===== two sections: Exams and Prepare for exams ===== */
 S.hmode=null;
 {const _go2=go;go=function(v){if(v==="login")S.hmode=null;return _go2(v)}}
