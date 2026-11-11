@@ -697,7 +697,10 @@ function drawBar(){
     h("button",{class:"brand",onclick:()=>go(S.me?"home":"login"),"aria-label":"Home"},h("b",{},"Z"),"Zayed English Lab"),
     S.me&&S.view!=="teacher"?[h("span",{class:"small muted"},S.me.name.split(" ").slice(0,2).join(" ")+(S.me.num?" · "+mask(S.me.num):"")),h("span",{class:"pill"},LV[lvl()]),h("button",{class:"btn ghost sm",onclick:()=>showGoodbye()},"Finish for today")]:null,
     h("button",{class:"btn ghost sm",onclick:togglePalette,"aria-label":"Change app colour"},"Colors"),
-    h("button",{class:"btn ghost sm",onclick:()=>{if(IS_TEACHER){go("teacher");return}askPin(()=>{IS_TEACHER=true;drawBar();go("teacher")})}},"Teacher dashboard")
+    h("button",{class:"btn ghost sm",style:(IS_TEACHER||/teacher/i.test(location.hash)?"":"display:none"),onclick:()=>{if(IS_TEACHER){go("teacher")
+return}askPin(()=>{IS_TEACHER=true
+drawBar()
+go("teacher")})}},"Teacher dashboard")
   );
 }
 function go(v){if(v==="login"||(v==="home"&&S.view==="login"))IS_TEACHER=false
@@ -5538,7 +5541,7 @@ function askPin(ok){const inp=h("input",{type:"password",inputmode:"numeric",aut
  const go1=()=>{if(pinHash(inp.value)===PIN_HASH){STAMP_UNTIL=Date.now()+10*60*1000;ov.remove();ok()}else{msg.textContent="Wrong PIN.";msg.style.color="#C62828";inp.value="";inp.focus()}};
  inp.addEventListener("keydown",e=>{if(e.key==="Enter")go1()});
  const ov=h("div",{class:"welcome",role:"dialog","aria-label":"Teacher PIN"},h("div",{class:"wcard",style:"max-width:360px"},h("h2",{},"🔏 Teacher PIN"),msg,inp,h("div",{class:"row",style:"justify-content:center"},h("button",{class:"btn ghost",onclick:()=>ov.remove()},"Cancel"),h("button",{class:"btn",onclick:go1},"Unlock"))));document.body.append(ov);setTimeout(()=>inp.focus(),50)}
-{const _cc=certCard;certCard=function(cv,fname,label){const card=_cc(cv,fname,label);if(cv._o){const b=h("button",{class:"btn ghost",onclick:()=>askPin(async()=>{b.disabled=true;b.textContent="Stamping…";try{const nv=await cv._mk(cv._o);const c=cv.getContext("2d");c.clearRect(0,0,cv.width,cv.height);c.drawImage(nv,0,0);card.querySelector("img").src=cv.toDataURL("image/png");b.textContent="✔ Stamped and signed"}catch(e){b.disabled=false;b.textContent="🔏 Add stamp and signature"}})},"🔏 Teacher stamp and signature (PIN)");card.querySelector(".row").append(b)}return card}}
+{const _cc=certCard;certCard=function(cv,fname,label){const card=_cc(cv,fname,label);if(cv._o&&(stampOn()||IS_TEACHER)){const b=h("button",{class:"btn ghost",onclick:()=>askPin(async()=>{b.disabled=true;b.textContent="Stamping…";try{const nv=await cv._mk(cv._o);const c=cv.getContext("2d");c.clearRect(0,0,cv.width,cv.height);c.drawImage(nv,0,0);card.querySelector("img").src=cv.toDataURL("image/png");b.textContent="✔ Stamped and signed"}catch(e){b.disabled=false;b.textContent="🔏 Add stamp and signature"}})},"🔏 Teacher stamp and signature (PIN)");card.querySelector(".row").append(b)}return card}}
 /* ---- better American voice ---- */
 function voiceRank(v){let r=0;const n=v.name||"";if(/^en[-_]US/i.test(v.lang))r+=60;else if(/^en/i.test(v.lang))r+=10;if(/natural|neural|online|premium|enhanced|siri/i.test(n))r+=70;if(/google us english/i.test(n))r+=30;if(/samantha|ava|allison|evan|nathan|zoe|aria|jenny|guy|davis|christopher|eric|david|mark|alex|aaron/i.test(n))r+=20;if(/compact|espeak|festival|robot|novelty|zarvox|trinoids|bubbles|boing|cellos|whisper|organ|bells|bad news|good news|jester|superstar|albert|fred|junior|kathy|ralph|deranged|hysterical|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley/i.test(n))r-=150;return r}
 let _vc=null;function usVoice(){if(!window.speechSynthesis)return null;const vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));if(!vs.length)return null;try{const w=localStorage.getItem("zel-voice");const f=w&&vs.find(v=>v.name===w);if(f)return f}catch(e){}vs.sort((a,b)=>voiceRank(b)-voiceRank(a));return vs[0]}
@@ -7900,6 +7903,7 @@ function viewBxrRun(){const B=S.bx||{ids:[BX_TXT()[0].id]},T=BX_TXT().filter(t=>
   const cnt=h("span",{class:"pill"},"0 / "+qs.length+" answered"),upd=()=>{cnt.textContent=ans.filter(a=>a>=0).length+" / "+qs.length+" answered"};
   box.append(bxBack("bxr","← Reading Exams"),h("div",{class:"row",style:"justify-content:space-between"},h("h2",{},B.exam?"Reading Exam "+B.key.slice(-1):"Practice: "+T[0].title),B.exam?timer:null),h("div",{class:"row"},cnt,h("span",{class:"pill"},max+" marks")),...body,
     h("button",{class:"btn",style:"background:#12915B",onclick:()=>{const un=ans.filter(a=>a<0).length;if(!un||confirm(un+" question(s) have no answer. Submit anyway?"))submit()}},"✅ Submit"));
+  B.submitNow=()=>{if(!done)submit()};
   if(B.exam){clearInterval(QT);QT=setInterval(()=>{left--;const m=Math.floor(left/60),s=left%60;timer.textContent="⏱ "+m+":"+String(s).padStart(2,"0");if(left<=0){submit()}},1000)}
   return box}
 XV.bxrrun=viewBxrRun;
@@ -8206,7 +8210,7 @@ function correctionFooter(res){const p=Math.round(res.pct!=null?res.pct:(res.max
   const note=top?"Teacher's note: focus on "+MK_NAME[top].toLowerCase()+" ("+MK_CODE[top]+"). "+MK_TIP[top]:"Teacher's note: excellent work. Keep writing like this!";
   const out=h("div",{});const show=async()=>{try{const cv=await ovalSig(p,new Date());out.replaceChildren(h("img",{src:cv.toDataURL("image/png"),alt:"Teacher signature",style:"width:100%;max-width:420px"}))}catch(e){}};
   const row=h("div",{class:"row",style:"align-items:center;flex-wrap:wrap;gap:10px"},h("span",{class:"mkmarked",style:"color:"+col},"Marked by Mr. Fathy Ali · "+d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})),
-    stampOn()?null:h("button",{class:"btn ghost sm",onclick:()=>askPin(show)},"🔏 Teacher signature (PIN)"));
+    null);
   if(stampOn())show();
   return h("div",{class:"card col mkfoot",style:"border-left:6px solid "+col},h("div",{class:"mkhandtxt"},note),row,out)}
 {const _mv=markedView;markedView=function(text,res,opts){const el=_mv(text,res,opts);try{el.append(correctionFooter(res))}catch(e){console.error(e)}return el}}
@@ -8215,7 +8219,7 @@ EXS.sig=false;
 async function exSigAdd(sh,p){if(!EXS.sig||!stampOn()||p==null)return sh;const cv=await ovalSig(p,new Date());sh.need(230);sh.c().drawImage(cv,sh.X1-440,sh.y,420,Math.round(420*cv.height/cv.width));sh.y+=Math.round(420*cv.height/cv.width)+8;return sh}
 {const _b=exBxResult;exBxResult=async function(it,stu,cls,mode,d){const sh=await _b.apply(this,arguments);d=d||{};let p=null;if(it.k==="rx"){const A=(d.attempts||[]).filter(a=>a.u===it.unit);if(A.length)p=Math.max(...A.map(a=>pct(a.sc,a.t)))}else{const W=(d.writing||[]).filter(x=>x.id&&x.id.indexOf("wx-"+it.id)===0);if(W.length)p=W[W.length-1].score*10}return exSigAdd(sh,p)}}
 {const _s=exShotResult;exShotResult=async function(cls,stu,key,mode,d){const sh=await _s.apply(this,arguments);const st=((d||{}).shot||{})[key];return exSigAdd(sh,st&&st.t?st.pct:null)}}
-{const _er=exRun;exRun=async function(print){if(EXS.sig&&!stampOn()){askPin(()=>exRun(print));return}return _er.apply(this,arguments)}}
+{const _er=exRun;exRun=async function(print){if(EXS.sig&&!stampOn()){EXS.sig=false}return _er.apply(this,arguments)}}
 {const _ec=exCard;exCard=function(){const card=_ec();try{const E=EXS;const i=h("input",{type:"checkbox",checked:!!E.sig,onchange:()=>{E.sig=i.checked}});const lab=h("label",{class:"row",style:"gap:8px;margin:0;font-weight:500"},i,h("span",{},"Add my oval signature (date, time and colour by mark) to the results sheets (asks the PIN)"));const rows=[...card.querySelectorAll(".row")].filter(r=>r.querySelector("button.btn"));const btn=rows[rows.length-1];if(btn)btn.insertAdjacentElement("beforebegin",h("div",{},lab));else card.append(lab)}catch(e){console.error(e)}return card}}
 
 RX.g9.push({
@@ -8321,7 +8325,7 @@ function lcGate(cls,i,done){const code=lcCode(cls,i),id=cls+"-"+i;
   const ov=h("div",{class:"welcome",role:"dialog","aria-label":"Login code"},h("div",{class:"wcard",style:"max-width:380px"},h("h2",{},"🔑 Hello, "+lcFirst(cls,i)+"!"),box));
   const draw=()=>{const left=LC_TRIES-st.n,wait=st.until-Date.now();
     if(wait>0){box.replaceChildren(h("p",{style:"color:#C62828"},"Too many wrong tries. Please wait "+Math.ceil(wait/60000)+" minute(s), or ask your teacher."),
-      h("div",{class:"row",style:"justify-content:center"},h("button",{class:"btn ghost",onclick:()=>ov.remove()},"Close"),h("button",{class:"btn ghost",onclick:()=>askPin(()=>{st={n:0,until:0};lset(k,st);draw()})},"🔏 Teacher unlock")));return}
+      h("div",{class:"row",style:"justify-content:center"},h("button",{class:"btn ghost",onclick:()=>ov.remove()},"Close")));return}
     box.replaceChildren(h("p",{},"Write the last 4 digits of your student number."),inp,msg,lcExample(),h("p",{class:"small muted"},"Tries left: "+left+" of "+LC_TRIES),h("div",{class:"row",style:"justify-content:center"},h("button",{class:"btn ghost",onclick:()=>ov.remove()},"Cancel"),h("button",{class:"btn",onclick:check},"Enter")));setTimeout(()=>{try{inp.focus()}catch(e){}},50)};
   function check(){const v=inp.value.replace(/\D/g,"");if(v.length<code.length){msg.textContent="Write all "+code.length+" digits.";msg.style.color="#C62828";return}
     if(v===code){st={n:0,until:0};lset(k,st);LC_OK[id]=1;ov.remove();done();return}
@@ -8394,15 +8398,22 @@ function xlBegin(c){XSHset(c.sh,c.id);XL.sid=c.id;XL.item=c.item;XL.active=true;
   if(xlLaunch(c.item)===false){XL.active=false;xlGuardOff();acExitFS();return}
   xlStatus("in")}
 function xlDone(why){if(!XL.active)return;XL.active=false;XL.locked=false;lset("zel-lv-"+XL.sid,1);lset("zel-lvlock",null);xlStatus(why||"submitted");xlGuardOff();try{acExitFS()}catch(e){}if(XL.over){XL.over.remove();XL.over=null}toast(why==="ended"?"Your teacher ended the live exam.":"Your exam was submitted. Well done!")}
-function xlLeave(why){if(!XL.active||XL.locked||!S.me)return;const now=Date.now();if(now-XL.last<2500)return;XL.last=now;XL.locked=true;XL.n++;
+function xlLeave(why){if(!XL.active||XL.locked||!S.me)return;const now=Date.now();if(now-XL.last<2500)return;XL.last=now;XL.n++;if(XL.n>=XL_MAX){xlAuto(why);return}XL.locked=true;
   lset("zel-lvlock",{sid:XL.sid,key:xlKey(),at:now});
   if(DB){try{DB.doc("lock/"+xlKey()).set({sid:XL.sid,at:now,why,n:XL.n,name:S.me.name}).catch(()=>{})}catch(e){}xlStatus("left",{why})}
   xlLockUI(why)}
 function xlSay(){try{acSay("Warning. Please stay on the exam page. You left the exam. Call your teacher now.",1,.9);acSiren("red")}catch(e){}}
+const XL_MAX=10;
+function xlAuto(why){XL.autoFlag="tries";XL.locked=false;let ok=false;
+  try{const M=S.mock;if(M&&!M.fin&&(S.view==="mockrun"||M.pred)){M.pred?predFinish(true):mockFinish();ok=true}
+   else if(S.bx&&S.bx.submitNow){S.bx.submitNow();ok=true}
+   else if(typeof shotSubmit==="function"&&S.shot&&S.shot.key){shotSubmit(S.shot.key,true);ok=true}}catch(e){console.error(e)}
+  setTimeout(()=>{if(XL.active)xlDone("submitted");xlAutoMsg()},700)}
+function xlAutoMsg(){try{speechSynthesis.cancel();acSay("Your exam was submitted automatically because you left ten times.",1,.9)}catch(e){}
+  const ov=h("div",{class:"lvover",style:"position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#374151,#111827);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center"},h("div",{class:"col",style:"max-width:440px;gap:14px;align-items:center"},h("div",{style:"font-size:64px"},"📨"),h("h1",{style:"color:#fff;margin:0"},"Exam submitted"),h("p",{style:"font-size:1.1rem"},"You used all "+XL_MAX+" tries, so your exam was submitted automatically. Your teacher can see this."),h("button",{class:"btn",style:"background:#fff;color:#111",onclick:()=>{ov.remove();go("home")}},"OK")));document.body.append(ov)}
 function xlLockUI(why){if(XL.over)XL.over.remove();clearInterval(XL.vt);
   const ov=h("div",{class:"lvover",role:"alertdialog","aria-label":"Exam locked",style:"position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#6E0A0A,#E02424);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center"},
-   h("div",{class:"col",style:"max-width:440px;gap:14px;align-items:center"},h("div",{style:"font-size:64px"},"🔴"),h("h1",{style:"color:#fff;margin:0"},"STOP · Exam locked"),h("p",{style:"font-size:1.15rem"},"You "+why+". Please stay on the exam. Do not leave until you submit."),h("p",{},"Raise your hand. Your teacher will unlock your exam with the teacher key."),
-   h("button",{class:"btn",style:"background:#fff;color:#6E0A0A",onclick:()=>askPin(()=>xlUnlock())},"🔑 Teacher key")));
+   h("div",{class:"col",style:"max-width:440px;gap:14px;align-items:center"},h("div",{style:"font-size:64px"},"🔴"),h("h1",{style:"color:#fff;margin:0"},"STOP · Exam locked"),h("p",{style:"font-size:1.15rem"},"You "+why+". Please stay on the exam. Do not leave until you submit."),h("p",{style:"background:rgba(0,0,0,.25);border-radius:12px;padding:8px 14px;font-weight:700"},"Tries used: "+XL.n+" of "+XL_MAX+" · "+(XL_MAX-XL.n)+" left"+(XL.n===XL_MAX-1?" · LAST TRY: if you leave again your exam is submitted automatically":"")),h("p",{},"Raise your hand and wait. Only your teacher can open your exam again. This page will open by itself when your teacher allows it."),h("p",{class:"small",style:"opacity:.85"},"Waiting for your teacher…")));
   XL.over=ov;document.body.append(ov);xlSay();XL.vt=setInterval(()=>{if(XL.locked)xlSay();else clearInterval(XL.vt)},20000)}
 function xlUnlock(){if(!XL.locked)return;XL.locked=false;clearInterval(XL.vt);lset("zel-lvlock",null);try{speechSynthesis.cancel()}catch(e){}
   if(XL.over)XL.over.remove();
@@ -8454,7 +8465,7 @@ function xlDraw(){const box=document.getElementById("lvbox");if(!box)return;
       live?h("button",{class:"btn ghost sm",onclick:()=>{DB.doc("ctl/"+c.id).set(Object.assign({},c,{state:"ended",endTs:Date.now()})).then(()=>toast("Live ended."))}},"⏹ End live"):null),
      h("div",{class:"row small",style:"gap:10px;flex-wrap:wrap"},h("span",{},"🟢 "+(cnt.in||0)+" in exam"),h("span",{},"🟡 "+(cnt.left||0)+" left"),h("span",{},"✅ "+(cnt.submitted||0)+" submitted"),h("span",{},"🔴 "+((cnt.ready||0)+(cnt.none||0))+" waiting")),
      h("div",{class:"col",style:"gap:3px;max-height:260px;overflow:auto"},st.map(r=>{const z=r.s?r.s.state:"none",b=XL_B[z]||["🔴","Waiting"],locked=z==="left"&&r.lk&&!(r.ul&&r.ul.ts>r.lk.at);
-      return h("div",{class:"row small",style:"justify-content:space-between;gap:8px;flex-wrap:nowrap"},h("span",{},b[0]+" "+r.x.n),h("span",{class:"row",style:"gap:6px;flex-wrap:nowrap"},h("span",{class:"muted"},b[1]+(r.s&&r.s.n?" · "+r.s.n+" warning(s)":"")),locked?h("button",{class:"btn sm",onclick:()=>DB.doc("unlock/"+r.x.k).set({ts:Date.now(),by:"teacher"}).then(()=>toast("Unlocked "+r.x.n))},"🔑 Allow back in"):null))})))});
+      return h("div",{class:"row small",style:"justify-content:space-between;gap:8px;flex-wrap:nowrap"},h("span",{},b[0]+" "+r.x.n),h("span",{class:"row",style:"gap:6px;flex-wrap:nowrap"},h("span",{class:"muted"},b[1]+(r.s&&r.s.n?" · tries "+r.s.n+"/"+XL_MAX:"")),locked?h("button",{class:"btn sm",onclick:()=>DB.doc("unlock/"+r.x.k).set({ts:Date.now(),by:"teacher"}).then(()=>toast("Unlocked "+r.x.n))},"🔑 Allow back in"):null))})))});
   box.replaceChildren(h("h3",{},"🔴 Live exam control"),h("p",{class:"small muted"},"Choose an exam, choose who, then press Go LIVE. Students' screens turn red and go full screen. If a student leaves, the exam locks and plays a warning until you press Allow back in (or type your key on their device). Students can submit at any time."),
     DB?form:h("p",{class:"note"},"Live control needs the Claude app link, which has the shared database. It is not available in this copy."),DB?h("div",{class:"col",style:"gap:10px"},cards.length?cards:h("p",{class:"small muted"},"No live session yet.")):null)}
 function xlGo(){const it=xlItems().find(x=>x.id===XLF.item);if(!it||!DB){toast("Live control needs the Claude app link.");return}
@@ -8933,14 +8944,14 @@ const monFmt=t=>t?new Date(t).toLocaleString("en-GB",{day:"2-digit",month:"2-dig
 const monFull=(cls,i)=>tc(ROSTER[cls].names[i]);
 /* 1. extra facts the monitor needs: the mark of a submitted live exam, and "working now" for assignments */
 {const _rec=record;record=function(skill,unit,sc,t){try{if(XL&&XL.active)XL.pct=pct(sc,t)}catch(e){}return _rec.apply(this,arguments)}}
-{const _st=xlStatus;xlStatus=function(state,extra){if(state==="submitted"&&XL.pct!=null){extra=Object.assign({pct:Math.round(XL.pct)},extra||{});XL.pct=null}return _st.call(this,state,extra)}}
+{const _st=xlStatus;xlStatus=function(state,extra){if(state==="submitted"){if(XL.pct!=null){extra=Object.assign({pct:Math.round(XL.pct)},extra||{});XL.pct=null}if(XL.autoFlag){extra=Object.assign({auto:XL.autoFlag},extra||{});XL.autoFlag=null}}return _st.call(this,state,extra)}}
 {const _al=xaLaunch;xaLaunch=function(id){const r=_al.apply(this,arguments);try{if(r!==false&&XC.cur&&DB&&S.me){const k=xaKey();DB.doc("exs/"+XC.cur+"_"+k).set({sid:XC.cur,key:k,cls:S.me.cls,name:S.me.name,state:"in",ts:Date.now()}).catch(()=>{})}}catch(e){}return r}}
 /* 2. status of one student in one session */
 function monSessions(){const a=[];Object.values(XL.ctl||{}).forEach(c=>c&&a.push({kind:"L",c,id:"L:"+c.id}));Object.values(XC.asg||{}).forEach(c=>c&&a.push({kind:"A",c,id:"A:"+c.id}));return a.sort((x,y)=>(y.c.ts||0)-(x.c.ts||0))}
 function monStatus(se,x){const c=se.c,e=(XL.exs||{})[c.id+"_"+x.k];
   if(se.kind==="A"){const d=(XC.ast||{})[c.id+"_"+x.k];if(d)return{g:"done",label:"Submitted",pct:d.pct,ts:d.ts};if(e&&e.state==="in")return{g:"now",label:"Working now",ts:e.ts};return{g:"away",label:Date.now()>c.end?"Missed (closed)":Date.now()<c.start?"Not opened yet":"Not started"}}
   if(!e)return{g:"away",label:c.state==="live"?"Not joined":"Did not join"};
-  if(e.state==="submitted")return{g:"done",label:"Submitted",pct:e.pct,ts:e.ts};
+  if(e.state==="submitted")return{g:"done",label:e.auto?"Submitted automatically (10 tries)":"Submitted",pct:e.pct,ts:e.ts};
   if(e.state==="in")return{g:"now",label:"In the exam",ts:e.ts};
   if(e.state==="left")return{g:"now",label:"Left the exam · locked",warn:true,ts:e.ts};
   if(e.state==="ready")return{g:"away",label:"In the waiting room"};
@@ -9194,6 +9205,94 @@ function cxCard(){if(!S.me)return null;const L=Object.values(CX.items).filter(c=
 function cxHomeRefresh(){try{const o=document.querySelector(".cxcard"),n=cxCard();if(S.view!=="home")return;if(o&&n)o.replaceWith(n);else if(o&&!n)o.remove();else if(!o&&n){const a=document.querySelector(".xmcard")||document.querySelector(".dpcard");if(a)a.insertAdjacentElement("afterend",n)}}catch(e){}}
 {const _vh=viewHome;viewHome=function(){const el=_vh();try{const dp=dpCard();if(dp){const r=el.children[1];r?r.insertAdjacentElement("beforebegin",dp):el.append(dp)}
   const others=[cxCard(),xmCard()].filter(Boolean);if(others.length){const a=el.querySelector(".xacard")||el.querySelector(".lvlcard")||el.querySelector(".dpcard");others.forEach(c=>{if(a)a.insertAdjacentElement("afterend",c);else el.append(c)});}}catch(e){console.error(e)}return el}}
+
+/* ===== New home layout: two picture tiles on top, four framed daily tiles below ===== */
+function dpBoy(o){o=o||{};
+  return '<ellipse cx="100" cy="143" rx="92" ry="5" fill="rgba(0,0,0,.18)"/>'+
+  /* body: white kandura */
+  '<path d="M62 118 L64 80 Q66 70 80 68 L120 68 Q134 70 136 80 L138 118Z" fill="#fff" stroke="#E5E7EB" stroke-width="1.5"/>'+
+  '<path d="M92 68 L100 82 L108 68Z" fill="#F3F4F6"/><circle cx="100" cy="90" r="1.6" fill="#9CA3AF"/><circle cx="100" cy="100" r="1.6" fill="#9CA3AF"/>'+
+  /* ghutra drapes */
+  '<path d="M76 38 Q66 56 70 76 L86 68 L84 46Z" fill="#fff" stroke="#E5E7EB" stroke-width="1.5"/><path d="M124 38 Q134 56 130 76 L114 68 L116 46Z" fill="#fff" stroke="#E5E7EB" stroke-width="1.5"/>'+
+  '<circle cx="100" cy="38" r="26" fill="#fff" stroke="#E5E7EB" stroke-width="1.5"/>'+
+  /* face */
+  '<ellipse cx="100" cy="46" rx="14" ry="16" fill="#E2A878"/><path d="M87 38 Q100 30 113 38 Q113 33 100 31 Q87 33 87 38Z" fill="#fff"/>'+
+  '<circle cx="94.5" cy="46" r="1.8" fill="#1F2937"/><circle cx="105.5" cy="46" r="1.8" fill="#1F2937"/><path d="M91 41 Q94.5 39 98 41 M102 41 Q105.5 39 109 41" stroke="#3B2314" stroke-width="1.5" fill="none" stroke-linecap="round"/>'+
+  '<path d="M94 54 Q100 59 106 54" stroke="#7C2D12" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M92 52 Q100 62 108 52 Q100 58 92 52Z" fill="#3B2314" opacity=".25"/>'+
+  /* agal (black cord) */
+  '<ellipse cx="100" cy="21" rx="23" ry="6" fill="none" stroke="#111827" stroke-width="3.2"/>'+(o.phones?'<path d="M76 40 Q76 14 100 14 Q124 14 124 40" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round"/><rect x="70" y="38" width="9" height="16" rx="4" fill="#EF4444"/><rect x="121" y="38" width="9" height="16" rx="4" fill="#EF4444"/>':"")}
+const DP_PAT='<defs><pattern id="ip" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M13 2 L16 10 L24 13 L16 16 L13 24 L10 16 L2 13 L10 10Z" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1"/></pattern></defs><rect width="200" height="150" fill="url(#ip)"/>';
+const DP_ART={
+ exam:function(){return '<svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:100%;height:auto;display:block">'+DP_PAT+
+  '<circle cx="100" cy="76" r="62" fill="rgba(255,255,255,.16)"/>'+
+  /* exam paper */
+  '<g transform="rotate(-5 100 78)"><rect x="52" y="14" width="96" height="124" rx="7" fill="#000" opacity=".18" transform="translate(4 5)"/><rect x="52" y="14" width="96" height="124" rx="7" fill="#fff"/><rect x="52" y="14" width="96" height="22" rx="7" fill="#B91C1C"/><rect x="52" y="28" width="96" height="8" fill="#B91C1C"/><text x="100" y="30" font-family="Georgia,serif" font-weight="700" font-size="14" fill="#fff" text-anchor="middle" letter-spacing="2">EXAM</text>'+
+  '<g stroke="#CBD5E1" stroke-width="2.4" stroke-linecap="round"><path d="M76 52H136M76 70H128M76 88H134M76 106H118"/></g>'+
+  '<g fill="none" stroke="#16A34A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M60 52l4 4 7-8M60 70l4 4 7-8M60 88l4 4 7-8"/></g><rect x="60" y="102" width="10" height="9" rx="2" fill="none" stroke="#94A3B8" stroke-width="1.8"/></g>'+
+  /* grade seal */
+  '<g transform="translate(150 30)"><circle r="19" fill="#FBBF24" stroke="#fff" stroke-width="3"/><circle r="14" fill="none" stroke="#B45309" stroke-width="1.2" stroke-dasharray="2 2.5"/><text y="6" font-family="Georgia,serif" font-weight="800" font-size="16" fill="#7C2D12" text-anchor="middle">A+</text></g>'+
+  /* pen */
+  '<g transform="rotate(38 160 112)"><rect x="150" y="52" width="14" height="80" rx="7" fill="#1D4ED8"/><rect x="150" y="52" width="14" height="14" rx="6" fill="#1E3A8A"/><rect x="164" y="60" width="3" height="34" rx="1.5" fill="#FBBF24"/><path d="M150 132h14l-7 16z" fill="#E5E7EB"/><path d="M155 143l2 5 2-5z" fill="#111827"/></g>'+
+  /* stopwatch */
+  '<g transform="translate(36 112)"><rect x="-4" y="-27" width="8" height="6" rx="2" fill="#E5E7EB"/><circle r="19" fill="#fff" stroke="#E5E7EB" stroke-width="2"/><circle r="15" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.6"/><path d="M0-12v4M12 0h-4M0 12v-4M-12 0h4" stroke="#0F172A" stroke-width="1.6"/><path d="M0 0L7-6" stroke="#DC2626" stroke-width="2.4" stroke-linecap="round"/><path d="M0 0V-8" stroke="#0F172A" stroke-width="2" stroke-linecap="round"/><circle r="2" fill="#0F172A"/></g></svg>'},
+ prep:function(){return '<svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:100%;height:auto;display:block">'+DP_PAT+
+  '<circle cx="100" cy="80" r="60" fill="rgba(255,255,255,.16)"/>'+
+  /* light bulb */
+  '<g transform="translate(100 34)"><path d="M0-22 V-30 M-20-14 L-26-20 M20-14 L26-20 M-26 0H-34 M26 0H34" stroke="#FDE68A" stroke-width="3" stroke-linecap="round"/><path d="M-12 8 Q-20-4 -14-14 Q-6-24 6-22 Q18-18 16-4 Q14 4 10 8Z" fill="#FDE047" stroke="#F59E0B" stroke-width="1.4"/><rect x="-8" y="8" width="16" height="9" rx="2" fill="#9CA3AF"/><path d="M-5 12h10" stroke="#6B7280" stroke-width="1.5"/></g>'+
+  /* headphones */
+  '<g fill="none" stroke="#0F172A" stroke-width="5" stroke-linecap="round"><path d="M52 92 Q52 54 100 54 Q148 54 148 92" /></g><rect x="44" y="86" width="16" height="30" rx="7" fill="#EF4444" stroke="#0F172A" stroke-width="2.4"/><rect x="140" y="86" width="16" height="30" rx="7" fill="#EF4444" stroke="#0F172A" stroke-width="2.4"/>'+
+  /* open book */
+  '<path d="M100 132 Q78 120 52 124 V84 Q78 80 100 92Z" fill="#fff" stroke="#CBD5E1" stroke-width="1.6"/><path d="M100 132 Q122 120 148 124 V84 Q122 80 100 92Z" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.6"/><path d="M100 92V132" stroke="#94A3B8" stroke-width="1.6"/>'+
+  '<g stroke="#94A3B8" stroke-width="2" stroke-linecap="round"><path d="M60 96Q78 92 92 100M60 105Q78 101 92 109M60 114Q78 110 92 118M108 100Q122 92 140 96M108 109Q122 101 140 105M108 118Q122 110 140 114"/></g>'+
+  '<path d="M52 124 Q78 120 100 132 Q122 120 148 124 V130 Q122 126 100 138 Q78 126 52 130Z" fill="#0F766E"/>'+
+  /* pencil and stars */
+  '<g transform="rotate(-30 176 110)"><rect x="170" y="78" width="12" height="52" rx="2" fill="#F59E0B"/><rect x="170" y="78" width="12" height="9" rx="2" fill="#F472B6"/><path d="M170 130h12l-6 14z" fill="#FDE68A"/><path d="M174 138l2 6 2-6z" fill="#111827"/></g>'+
+  '<g fill="#FDE68A"><path d="M26 40l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/><path d="M172 44l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></g></svg>'}};
+const dpCss2=document.createElement("style");dpCss2.textContent=
+".xbig{display:grid;grid-template-columns:1fr 1fr;gap:12px}.xbigb{position:relative;border:0;border-radius:26px;padding:12px 10px 14px;color:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;cursor:pointer;font:inherit;box-shadow:0 8px 20px rgba(0,0,0,.22),inset 0 0 0 4px rgba(255,255,255,.55);transition:transform .15s}.xbigb:active{transform:scale(.97)}.xbigb svg{filter:drop-shadow(0 6px 8px rgba(0,0,0,.25))}.xbigb b{font-size:1.35rem;line-height:1.1;color:#fff}.xbigb .ar{font-size:1.05rem;font-weight:700;opacity:.95}.xbigb .sub{font-size:.78rem;opacity:.92;line-height:1.25}"+
+".dpstrip{display:flex;flex-direction:column;gap:8px}.dpmg{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}@media(min-width:720px){.dpmg{grid-template-columns:repeat(4,1fr)}.xbig{gap:18px}}.xbig,.dpmg{max-width:860px;width:100%;margin-left:auto;margin-right:auto}.xlabcount{flex:none!important;width:36px!important;height:36px!important;padding:0!important;color:#6D28D9!important;background:#fff!important;text-shadow:none!important}.dpstrip{max-width:860px;margin:0 auto;width:100%}"+
+".dpmini{position:relative;aspect-ratio:1/1;border:0;border-radius:26px;padding:10px 8px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;cursor:pointer;font:inherit;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.2),inset 0 0 0 4px rgba(255,255,255,.55);transition:transform .15s}.dpmini:active{transform:scale(.96)}.dpmini .k{font-size:.72rem;font-weight:800;letter-spacing:.02em;text-transform:uppercase;opacity:.92}.dpmini .big{font-weight:800;line-height:1.05}.dpmini .ar{font-weight:700;line-height:1.15}.dpmini .cl{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}.dpmini .more{position:absolute;right:9px;bottom:6px;font-size:.7rem;opacity:.85}";
+document.head.append(dpCss2);
+const DPM={open:false,which:null};
+function dpModalClose(){const o=document.querySelector(".dpmodal");o&&o.remove();DPM.open=false}
+function dpModal(which){dpModalClose();DPM.open=true;DPM.which=which;const t={wx:dpWxTile,word:dpWordTile,say:dpSayTile,img:dpImgTile}[which]();t.style.minHeight=which==="img"?"300px":"220px";
+  const ov=h("div",{class:"dpmodal",role:"dialog","aria-modal":"true",style:"position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px",onclick:e=>{if(e.target===ov)dpModalClose()}},
+   h("div",{class:"col",style:"max-width:440px;width:100%;max-height:92vh;overflow:auto;gap:10px"},t,h("button",{class:"btn",style:"align-self:center;background:#fff;color:#111",onclick:dpModalClose},"✕ Close")));document.body.append(ov)}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&DPM.open)dpModalClose()});
+{const _r=dpRefresh;dpRefresh=function(){_r.apply(this,arguments);try{if(DPM.open&&S.view==="home")dpModal(DPM.which)}catch(e){}}}
+function dpCard(){if(!S.me)return null;try{dpLoadWx();if(!DP.img)dpLoadImg()}catch(e){}
+  const d=new Date(),w=DP.wx,wx=w?dpWx(w.c):null,wi=(dpDay()+DP.wi)%DP_WORDS.length,W=DP_WORDS[wi],si=(dpDay()*3+DP.si)%DP_SAYINGS.length,Sy=DP_SAYINGS[si],im=DP.img||dpSvg(hashStr(dpKey()+new Date().toDateString())+DP.ni);
+  const mini=(which,bg,label,kids,extra)=>h("button",Object.assign({class:"dpmini",style:"background:"+bg,onclick:()=>dpModal(which),"aria-label":label},extra||{}),...kids);
+  const wxT=mini("wx","linear-gradient(145deg,#0E7490,#38BDF8)","Weather in Abu Dhabi",[h("span",{class:"k"},"Abu Dhabi · أبوظبي"),h("span",{style:"font-size:2.6rem;line-height:1"},wx?wx[0]:"🌡️"),h("span",{class:"big",style:"font-size:1.9rem"},w?w.t+"°C":"—"),h("span",{class:"ar"},wx?wx[2]:"الطقس"),h("span",{class:"more"},"tap ›")]);
+  const wdT=mini("word","linear-gradient(145deg,#065F46,#10B981)","Word of the day",[h("span",{class:"k"},"📖 Word of the day"),h("span",{class:"big",style:"font-size:"+(W[0].length>9?"1.2rem":"1.55rem")+";margin-top:4px;word-break:break-word"},W[0]),h("span",{class:"ar",dir:"rtl",lang:"ar",style:"font-size:1.15rem;margin-top:2px"},W[3]),h("span",{class:"more"},"tap ›")]);
+  const syT=mini("say","linear-gradient(145deg,#9A3412,#F59E0B)","Proverb of the day",[h("span",{class:"k"},"💡 "+Sy[0]),h("span",{class:"big cl",style:"font-size:.95rem;-webkit-line-clamp:3;margin-top:2px"},"“"+Sy[1]+"”"),h("span",{class:"ar cl",dir:"rtl",lang:"ar",style:"font-size:.9rem;-webkit-line-clamp:2"},Sy[2]),h("span",{class:"more"},"tap ›")]);
+  const imT=mini("img","#0F172A","Nature picture of today",[h("img",{src:im.src,alt:"",style:"position:absolute;inset:0;width:100%;height:100%;object-fit:cover"}),h("span",{style:"position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(0,0,0,0) 45%,rgba(0,0,0,.55))"}),h("span",{class:"k",style:"position:relative;align-self:flex-start"},"🌍 Nature today"),h("span",{style:"position:relative;margin-top:auto;font-size:.78rem;font-weight:700;align-self:flex-start;text-align:left"},(im.cap||"").split(" · ")[0].slice(0,36)),h("span",{class:"more",style:"bottom:6px"},"tap ›")]);
+  imT.querySelector("img").addEventListener("error",()=>{DP.img=null;imT.querySelector("img").src=dpSvg(hashStr(dpKey())+DP.ni).src});
+  return h("div",{class:"dpcard dpstrip"},h("div",{class:"row",style:"justify-content:space-between;gap:8px;align-items:baseline"},h("b",{style:"font-size:1.05rem"},"🌅 Today · "+d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})),h("span",{dir:"rtl",lang:"ar",class:"small muted"},d.toLocaleDateString("ar-AE",{weekday:"long",day:"numeric",month:"long"}))),h("div",{class:"dpmg"},wxT,wdT,syT,imT))}
+function labItems(){if(!S.me)return[];return Object.values(CX.items||{}).filter(c=>c&&c.pub&&c.title&&cxMine(c,S.me)).sort((a,b)=>((b.kind==="html")-(a.kind==="html"))||((b.ts||0)-(a.ts||0)))}
+function labView(){const L=labItems(),back=h("button",{class:"btn ghost sm",style:"align-self:flex-start",onclick:()=>{S.hmode=null;render();window.scrollTo(0,0)}},"← Back to home");
+  const card=c=>{const d=cxDoneOf(c),k=CX_KIND[c.kind]||["📄",""];return h("div",{class:"card col",style:"gap:8px;border:3px solid #7C3AED;border-radius:20px;justify-content:space-between"},
+    h("div",{class:"row",style:"gap:10px;align-items:flex-start;flex-wrap:nowrap"},h("span",{style:"font-size:2.4rem;line-height:1"},k[0]),h("div",{},h("b",{style:"font-size:1.15rem"},c.title),h("div",{class:"small muted"},(c.kind==="html"?"Interactive · ":"")+(CX_SK[c.skill]||"")),c.desc?h("div",{class:"small"},String(c.desc).slice(0,110)):null)),
+    h("div",{class:"row",style:"justify-content:space-between;align-items:center;gap:8px"},d?h("span",{class:"pill good"},d.p!=null&&d.p<100?Math.round(d.p)+"%":"✅ Done"):h("span",{class:"pill"},"New"),h("button",{class:"btn",style:"background:#7C3AED;color:#fff",onclick:()=>{XC.cur=null;XSHset(null,"");cxOpen(c.id)}},d?"▶ Play again":"▶ Start")))};
+  return h("section",{class:"col",style:"gap:12px;max-width:900px;margin:0 auto;width:100%"},back,h("div",{class:"card col",style:"background:linear-gradient(135deg,#6D28D9,#EC4899);color:#fff;gap:2px;border:0"},h("h1",{style:"color:#fff;margin:0"},"🎮 Interactive Lab"),h("div",{dir:"rtl",lang:"ar",style:"font-weight:700;font-size:1.2rem"},"المختبر التفاعلي"),h("div",{class:"small"},"Games, activities and lessons made by your teacher. Choose one and start.")),
+    L.length?h("div",{style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px"},L.map(card)):h("div",{class:"card"},h("p",{},"No activities yet. Your teacher will add some soon."),h("p",{dir:"rtl",lang:"ar"},"لا توجد أنشطة بعد. سيضيف معلمك أنشطة قريبًا.")))}
+function cxHomeRefresh(){try{if(S.view!=="home")return;if(S.hmode==="lab"){render();return}const n=labItems().length,b=document.querySelector(".xlabcount");if(b){b.textContent=n?String(n):"0";b.style.display=n?"flex":"none"}}catch(e){}}
+{const _vh=viewHome;viewHome=function(){if(S.hmode==="lab"&&S.me&&!isEasy())return labView();const el=_vh();try{
+  if(S.hmode)return el;const oc=el.querySelector(".cxcard");oc&&oc.remove();const kids=[...el.children],eb=kids.find(k=>k.tagName==="BUTTON"&&/Exams/.test(k.textContent)&&!/Prepare/.test(k.textContent)),pb=kids.find(k=>k.tagName==="BUTTON"&&/Prepare for exams/.test(k.textContent));
+  if(eb&&pb){const tile=(old,bg,art,t,ar,sub)=>h("button",{class:"xbigb",style:"background:"+bg,onclick:()=>old.click(),"aria-label":t},h("div",{style:"width:100%",html:undefined}),h("b",{},t),h("span",{class:"ar",dir:"rtl",lang:"ar"},ar),h("span",{class:"sub"},sub));
+    const mk=(old,bg,art,t,ar,sub)=>{const b=tile(old,bg,art,t,ar,sub);b.firstChild.innerHTML=DP_ART[art]();return b};
+    const grid=h("div",{class:"xbig"},mk(eb,"linear-gradient(160deg,#B91C1C,#F97316)","exam","Exams","الاختبارات","Mock · Predicted · Best shot · End-of-Term"),mk(pb,"linear-gradient(160deg,#047857,#14B8A6)","prep","Prepare for exams","استعد للاختبارات","Reading · Listening · Speaking · Writing · Labs · Games"));
+    const h2=kids.find(k=>k.tagName==="H2"),first=el.children[0];eb.remove();pb.remove();
+    if(h2){h2.style.cssText="font-size:1.15rem;margin:4px 0 0";first.insertAdjacentElement("afterend",h2);h2.insertAdjacentElement("afterend",grid)}else first.insertAdjacentElement("afterend",grid);
+    const n=labItems().length,lab=h("button",{class:"xbigb",style:"background:linear-gradient(135deg,#6D28D9,#EC4899);flex-direction:row;gap:14px;text-align:left;padding:14px 16px;max-width:860px;width:100%;margin:12px auto 0",onclick:()=>{S.hmode="lab";render();window.scrollTo(0,0)},"aria-label":"Interactive Lab"},
+      h("span",{style:"font-size:3rem;line-height:1"},"🎮"),h("span",{class:"col",style:"gap:2px;flex:1"},h("b",{},"Interactive Lab"),h("span",{class:"ar",dir:"rtl",lang:"ar",style:"text-align:right;align-self:flex-start"},"المختبر التفاعلي"),h("span",{class:"sub"},"Games and activities from your teacher")),
+      h("span",{class:"xlabcount",style:"background:#fff;color:#6D28D9;font-weight:800;border-radius:999px;min-width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:1.1rem"+(n?"":";display:none")},String(n)));
+    grid.insertAdjacentElement("afterend",lab);
+    const dp=el.querySelector(".dpcard");if(dp)lab.insertAdjacentElement("afterend",dp)}
+  }catch(e){console.error(e)}return el}}
+
+/* students are never asked for the teacher PIN: it only works on the teacher's own device (teacher link or dashboard) */
+{const _ap=askPin;askPin=function(ok){if(!(IS_TEACHER||stampOn()||/teacher/i.test(location.hash))){try{toast("Only your teacher can do this.")}catch(e){}return}return _ap.apply(this,arguments)}}
 
 /* ---------- Boot ---------- */
 (function(){const w=lget("zel-who");render();})();
